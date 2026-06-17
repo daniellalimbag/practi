@@ -77,7 +77,7 @@ def _build_vectorstore() -> Chroma:
     vs = Chroma.from_documents(
         documents=splits,
         embedding=embeddings,
-        collection_name="practiguide_kb",
+        collection_name="practi_kb",
         persist_directory=None,
     )
     logger.info("Chroma index built with %s chunks from %s files", len(splits), len(raw_docs))
@@ -94,7 +94,7 @@ def _cors_origins() -> list[str]:
     ]
 
 
-app = FastAPI(title="PractiGuide API", version="0.1.0")
+app = FastAPI(title="practi API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins(),

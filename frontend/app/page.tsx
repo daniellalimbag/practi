@@ -87,7 +87,7 @@ export default function HomePage() {
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 pb-6 pt-8 sm:px-6">
       <header className="mb-6 border-b border-slate-200 pb-4">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-          PractiGuide 🎓
+          practi 🎓
         </h1>
         <p className="mt-1 text-sm text-slate-600">
           Ask questions about your practicum or internship. Answers use the

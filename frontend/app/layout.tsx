@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PractiGuide 🎓",
+  title: "practi 🎓",
   description: "RAG assistant for practicum and internship students",
 };
 
