@@ -99,7 +99,7 @@ function SourceCard({ source, msgId }: { source: SourceItem; msgId: string }) {
 
 function BotAvatar() {
   return (
-    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-violet-600 shadow-md shadow-brand-200 mt-0.5">
+    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-800 shadow-md shadow-brand-200 mt-0.5">
       <SparklesIcon className="h-4 w-4 text-white" />
     </div>
   );
@@ -235,10 +235,10 @@ export default function HomePage() {
     <div className="flex h-screen overflow-hidden bg-slate-50">
 
       {/* ── Sidebar ── */}
-      <aside className="hidden md:flex w-60 flex-col bg-slate-900 text-white shrink-0">
+      <aside className="hidden md:flex w-60 flex-col bg-brand-800 text-white shrink-0">
         {/* Brand */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-violet-600 shadow-lg shadow-brand-900/40">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-800 shadow-lg shadow-brand-900/40">
             <SparklesIcon className="h-5 w-5 text-white" />
           </div>
           <div className="leading-tight">
@@ -278,7 +278,7 @@ export default function HomePage() {
         <header className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3.5 shadow-sm shrink-0">
           <div className="flex items-center gap-3">
             {/* Mobile logo */}
-            <div className="md:hidden flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-violet-600 shrink-0">
+            <div className="md:hidden flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-800 shrink-0">
               <SparklesIcon className="h-4 w-4 text-white" />
             </div>
             <div>
@@ -301,7 +301,7 @@ export default function HomePage() {
             {isEmpty ? (
               /* Empty state */
               <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-violet-600 shadow-lg shadow-brand-200 mb-5">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-800 shadow-lg shadow-brand-200 mb-5">
                   <SparklesIcon className="h-8 w-8 text-white" />
                 </div>
                 <h2 className="text-xl font-semibold text-slate-800 mb-1.5">
