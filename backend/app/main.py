@@ -38,9 +38,12 @@ async def chat(body: ChatRequest):
         answer, sources = await rag_service.chat(body.message, body.history)
         return ChatResponse(answer=answer, sources=sources)
     except ValueError as e:
-        if "GROQ_API_KEY" in str(e):
-            raise HTTPException(status_code=500, detail=str(e))
-        raise HTTPException(status_code=503, detail=str(e))
+        # These are expected errors we handle (missing key, not initialized, etc.)
+        error_msg = str(e)
+        if "GROQ_API_KEY" in error_msg:
+            raise HTTPException(status_code=500, detail=error_msg)
+        raise HTTPException(status_code=503, detail=error_msg)
     except Exception as e:
-        logger.error(f"Error in chat endpoint: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        # Unexpected errors
+        logger.error(f"Unhandled error in chat endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An unexpected error occurred. Please try again later.")

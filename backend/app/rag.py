@@ -100,13 +100,19 @@ class RAGService:
 
     async def chat(self, message: str, history: list[HistoryTurn]):
         if self.vectorstore is None:
-            raise ValueError("Vector store not initialized")
+            logger.error("Vector store not initialized")
+            raise ValueError("Vector store not initialized. Please ensure documents are loaded.")
 
         if not settings.GROQ_API_KEY:
-            raise ValueError("GROQ_API_KEY is not configured")
+            logger.error("GROQ_API_KEY is missing")
+            raise ValueError("GROQ_API_KEY is not configured on the server.")
 
-        retriever = self.vectorstore.as_retriever(search_kwargs={"k": settings.RETRIEVER_K})
-        retrieved = retriever.invoke(message)
+        try:
+            retriever = self.vectorstore.as_retriever(search_kwargs={"k": settings.RETRIEVER_K})
+            retrieved = retriever.invoke(message)
+        except Exception as e:
+            logger.error(f"Error during retrieval: {e}")
+            raise ValueError("Failed to retrieve relevant information from the knowledge base.")
 
         context_blocks: list[str] = []
         sources = []
@@ -127,31 +133,36 @@ class RAGService:
 
         context_text = "\n\n---\n\n".join(context_blocks) if context_blocks else "(no context retrieved)"
 
-        llm = ChatGroq(
-            groq_api_key=settings.GROQ_API_KEY,
-            model_name="llama3-8b-8192",
-            temperature=0.2,
-        )
+        try:
+            llm = ChatGroq(
+                groq_api_key=settings.GROQ_API_KEY,
+                model_name="llama3-8b-8192",
+                temperature=0.1, # Slightly lower temperature for more factual consistency
+            )
 
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", settings.SYSTEM_PROMPT + "\n\nContext:\n{context}"),
-                MessagesPlaceholder("history"),
-                ("human", "{input}"),
-            ]
-        )
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", settings.SYSTEM_PROMPT + "\n\nCRITICAL: Answer ONLY using the provided context. If the answer is not contained within the context below, state that you do not have enough information to answer. Do not use outside knowledge.\n\nContext:\n{context}"),
+                    MessagesPlaceholder("history"),
+                    ("human", "{input}"),
+                ]
+            )
 
-        chain = prompt | llm
-        history_msgs = self.history_to_messages(history)
-        result = await chain.ainvoke(
-            {
-                "context": context_text,
-                "history": history_msgs,
-                "input": message,
-            }
-        )
-        answer = result.content if hasattr(result, "content") else str(result)
+            chain = prompt | llm
+            history_msgs = self.history_to_messages(history)
+            result = await chain.ainvoke(
+                {
+                    "context": context_text,
+                    "history": history_msgs,
+                    "input": message,
+                }
+            )
+            answer = result.content if hasattr(result, "content") else str(result)
+        except Exception as e:
+            logger.error(f"Error calling Groq API: {e}")
+            raise ValueError("The assistant is currently unavailable. Please try again later.")
 
+        # Deduplicate sources by filename while preserving order
         seen = set()
         unique_sources = []
         for s in sources:
