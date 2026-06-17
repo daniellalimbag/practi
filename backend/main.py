@@ -1,7 +1,3 @@
-"""
-PractiGuide FastAPI backend: RAG over /docs with Groq + Chroma + sentence-transformers.
-"""
-
 from __future__ import annotations
 
 import logging
