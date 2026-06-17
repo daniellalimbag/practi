@@ -12,6 +12,7 @@ class ChatRequest(BaseModel):
 class SourceItem(BaseModel):
     source: str
     excerpt: str
+    date: Optional[str] = None
 
 class ChatResponse(BaseModel):
     answer: str

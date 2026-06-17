@@ -6,7 +6,7 @@ type Role = "user" | "assistant";
 
 type HistoryTurn = { role: Role; content: string };
 
-type SourceItem = { source: string; excerpt: string };
+type SourceItem = { source: string; excerpt: string; date?: string };
 
 type ChatMessage = {
   id: string;
@@ -127,9 +127,16 @@ export default function HomePage() {
                           key={`${m.id}-${s.source}-${s.excerpt.slice(0, 24)}`}
                           className="rounded-lg bg-white p-2 text-xs text-slate-600 ring-1 ring-slate-100"
                         >
-                          <span className="font-medium text-slate-800">
-                            {s.source}
-                          </span>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-slate-800">
+                              {s.source}
+                            </span>
+                            {s.date && (
+                              <span className="text-[10px] text-slate-400">
+                                {s.date}
+                              </span>
+                            )}
+                          </div>
                           {s.excerpt ? (
                             <p className="mt-1 line-clamp-3 text-slate-600">
                               {s.excerpt}

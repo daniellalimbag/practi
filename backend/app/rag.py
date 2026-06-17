@@ -3,7 +3,13 @@ from pathlib import Path
 from typing import Optional
 
 from langchain_chroma import Chroma
-from langchain_community.document_loaders import DirectoryLoader, TextLoader
+from langchain_community.document_loaders import (
+    DirectoryLoader,
+    TextLoader,
+    PyPDFLoader,
+    Docx2txtLoader,
+    UnstructuredPowerPointLoader,
+)
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
@@ -30,23 +36,38 @@ class RAGService:
             logger.warning("Docs directory missing at %s — using empty corpus", settings.DOCS_DIR)
             return []
 
-        loader = DirectoryLoader(
-            str(settings.DOCS_DIR),
-            glob="**/*.*",
-            loader_cls=TextLoader,
-            loader_kwargs={"encoding": "utf-8"},
-            show_progress=False,
-            use_multithreading=True,
-            silent_errors=True,
-        )
-        docs = loader.load()
-        allowed_suffixes = {".md", ".txt", ".markdown"}
-        filtered: list[Document] = []
-        for d in docs:
-            src = d.metadata.get("source", "")
-            if Path(src).suffix.lower() in allowed_suffixes:
-                filtered.append(d)
-        return filtered
+        all_docs = []
+        
+        # Define loaders for different file types
+        loaders = [
+            DirectoryLoader(str(settings.DOCS_DIR), glob="**/*.txt", loader_cls=TextLoader, loader_kwargs={"encoding": "utf-8"}),
+            DirectoryLoader(str(settings.DOCS_DIR), glob="**/*.md", loader_cls=TextLoader, loader_kwargs={"encoding": "utf-8"}),
+            DirectoryLoader(str(settings.DOCS_DIR), glob="**/*.pdf", loader_cls=PyPDFLoader),
+            DirectoryLoader(str(settings.DOCS_DIR), glob="**/*.docx", loader_cls=Docx2txtLoader),
+            DirectoryLoader(str(settings.DOCS_DIR), glob="**/*.pptx", loader_cls=UnstructuredPowerPointLoader),
+        ]
+
+        for loader in loaders:
+            try:
+                loaded = loader.load()
+                # Post-process metadata to extract date and number from filename
+                for doc in loaded:
+                    src = doc.metadata.get("source", "")
+                    filename = Path(str(src)).stem
+                    # Naming convention: <Date>_<Number>
+                    if "_" in filename:
+                        parts = filename.split("_")
+                        doc.metadata["doc_date"] = parts[0]
+                        doc.metadata["doc_number"] = parts[1]
+                    else:
+                        doc.metadata["doc_date"] = "unknown"
+                        doc.metadata["doc_number"] = "0"
+                
+                all_docs.extend(loaded)
+            except Exception as e:
+                logger.error(f"Error loading documents with {loader.__class__.__name__}: {e}")
+
+        return all_docs
 
     def build_vectorstore(self):
         raw_docs = self.load_documents()
@@ -91,12 +112,18 @@ class RAGService:
         sources = []
         for doc in retrieved:
             src = doc.metadata.get("source", "unknown")
+            doc_date = doc.metadata.get("doc_date", "unknown")
             label = Path(str(src)).name
             excerpt = (doc.page_content or "").strip()
             if len(excerpt) > 400:
                 excerpt = excerpt[:400].rsplit(" ", 1)[0] + "…"
-            context_blocks.append(f"[{label}]\n{doc.page_content}")
-            sources.append({"source": label, "excerpt": excerpt})
+            
+            context_blocks.append(f"[Source: {label}, Date: {doc_date}]\n{doc.page_content}")
+            sources.append({
+                "source": label,
+                "excerpt": excerpt,
+                "date": doc_date if doc_date != "unknown" else None
+            })
 
         context_text = "\n\n---\n\n".join(context_blocks) if context_blocks else "(no context retrieved)"
 
