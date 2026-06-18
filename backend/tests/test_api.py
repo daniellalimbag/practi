@@ -30,7 +30,11 @@ def test_chat_validation_error():
 @patch("app.rag.rag_service.chat")
 def test_chat_success(mock_chat):
     # Mock the RAG service response
-    mock_chat.return_value = ("This is a mock answer", [{"source": "test.pdf", "excerpt": "test excerpt", "date": "2024-01-01"}])
+    mock_chat.return_value = (
+        "This is a mock answer",
+        [{"source": "test.pdf", "excerpt": "test excerpt", "date": "2024-01-01"}],
+        "2024-01-01",
+    )
     
     response = client.post("/api/chat", json={
         "message": "What is the policy?",
@@ -42,6 +46,7 @@ def test_chat_success(mock_chat):
     assert data["answer"] == "This is a mock answer"
     assert len(data["sources"]) == 1
     assert data["sources"][0]["source"] == "test.pdf"
+    assert data["query_date"] == "2024-01-01"
 
 @patch("app.rag.rag_service.chat")
 def test_chat_groq_key_missing(mock_chat):

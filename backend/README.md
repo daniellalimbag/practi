@@ -76,6 +76,16 @@ Examples:
 
 Type and date are stored in metadata and returned in `sources[].type` and `sources[].date`.
 
+### Date-aware retrieval
+
+Each chat request includes a **query date** (the user's local date from the frontend, or today on the server). Retrieval only includes documents whose filename date is **on or before** that date, so future or outdated-after-query-date docs are excluded.
+
+Re-run ingest after changing docs so `doc_date` metadata is present in `chroma_db/`:
+
+```powershell
+python ingest.py
+```
+
 ### Rebuilding the index
 
 If you add or change files, you can rebuild the index by running:
@@ -116,6 +126,6 @@ Tests mock Groq and do not require a real API key.
 
 ```text
 POST /api/chat
-Request:  { "message": string, "history": [{ "role": "user"|"assistant", "content": string }] }
-Response: { "answer": string, "sources": [{ "source": string, "excerpt": string, "date": string|null, "type": "announcement"|"slides"|null }] }
+Request:  { "message": string, "history": [...], "query_date": "YYYY-MM-DD" (optional) }
+Response: { "answer": string, "sources": [...], "query_date": string }
 ```

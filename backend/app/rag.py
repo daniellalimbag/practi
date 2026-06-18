@@ -18,6 +18,7 @@ from langchain_groq import ChatGroq
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.config import settings
+from app.date_utils import resolve_query_date
 from app.schemas import HistoryTurn
 
 logger = logging.getLogger(__name__)
@@ -149,7 +150,46 @@ class RAGService:
                 out.append(AIMessage(content=turn.content))
         return out
 
-    async def chat(self, message: str, history: list[HistoryTurn]):
+    def _is_doc_valid_for_date(self, doc: Document, query_date: str) -> bool:
+        doc_date = doc.metadata.get("doc_date", "unknown")
+        return doc_date != "unknown" and doc_date <= query_date
+
+    def retrieve(self, message: str, query_date: str) -> list[Document]:
+        """Retrieve chunks published on or before query_date, preferring newer docs."""
+        if self.vectorstore is None:
+            raise ValueError("Vector store not initialized")
+
+        date_filter = {"doc_date": {"$lte": query_date}}
+        k = settings.RETRIEVER_K_CANDIDATES
+
+        try:
+            retrieved = self.vectorstore.similarity_search(
+                message,
+                k=k,
+                filter=date_filter,
+            )
+        except Exception as e:
+            logger.warning("Chroma date filter failed (%s); using post-filter fallback", e)
+            retrieved = self.vectorstore.similarity_search(message, k=k)
+
+        filtered = [d for d in retrieved if self._is_doc_valid_for_date(d, query_date)]
+
+        if not filtered:
+            logger.warning(
+                "No documents on or before %s; retrying without date filter",
+                query_date,
+            )
+            retrieved = self.vectorstore.similarity_search(message, k=k)
+            filtered = [d for d in retrieved if self._is_doc_valid_for_date(d, query_date)]
+
+        return filtered[: settings.RETRIEVER_K]
+
+    async def chat(
+        self,
+        message: str,
+        history: list[HistoryTurn],
+        query_date: str | None = None,
+    ):
         if self.vectorstore is None:
             logger.error("Vector store not initialized")
             raise ValueError("Vector store not initialized. Please ensure documents are loaded.")
@@ -158,9 +198,11 @@ class RAGService:
             logger.error("GROQ_API_KEY is missing")
             raise ValueError("GROQ_API_KEY is not configured on the server.")
 
+        effective_query_date = resolve_query_date(message, query_date)
+        logger.info("Retrieving documents on or before %s", effective_query_date)
+
         try:
-            retriever = self.vectorstore.as_retriever(search_kwargs={"k": settings.RETRIEVER_K})
-            retrieved = retriever.invoke(message)
+            retrieved = self.retrieve(message, effective_query_date)
         except Exception as e:
             logger.error(f"Error during retrieval: {e}")
             raise ValueError("Failed to retrieve relevant information from the knowledge base.")
@@ -197,7 +239,16 @@ class RAGService:
 
             prompt = ChatPromptTemplate.from_messages(
                 [
-                    ("system", settings.SYSTEM_PROMPT + "\n\nCRITICAL: Answer ONLY using the provided context. If the answer is not contained within the context below, state that you do not have enough information to answer. Do not use outside knowledge.\n\nContext:\n{context}"),
+                    (
+                        "system",
+                        settings.SYSTEM_PROMPT
+                        + "\n\nThe user's query date is {query_date}. "
+                        "Only documents published on or before this date are included in the context. "
+                        "When multiple documents apply, prefer the most recent ones. "
+                        "CRITICAL: Answer ONLY using the provided context. "
+                        "If the answer is not contained within the context below, state that you do not have enough information to answer. "
+                        "Do not use outside knowledge.\n\nContext:\n{context}",
+                    ),
                     MessagesPlaceholder("history"),
                     ("human", "{input}"),
                 ]
@@ -210,6 +261,7 @@ class RAGService:
                     "context": context_text,
                     "history": history_msgs,
                     "input": message,
+                    "query_date": effective_query_date,
                 }
             )
             answer = result.content if hasattr(result, "content") else str(result)
@@ -225,6 +277,6 @@ class RAGService:
                 seen.add(s["source"])
                 unique_sources.append(s)
 
-        return str(answer), unique_sources
+        return str(answer), unique_sources, effective_query_date
 
 rag_service = RAGService()

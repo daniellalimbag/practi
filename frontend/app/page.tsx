@@ -13,10 +13,9 @@ type ChatMessage = {
 };
 
 const SUGGESTED = [
-  "What should I do before day one?",
-  "How do I handle professional conduct?",
-  "What are common learning goals for interns?",
-  "How should I communicate with my supervisor?",
+  "What documents do I need to prepare for pre-deployment?",
+  "Where do I upload my weekly reports and timesheets?",
+  "Do I submit my MOA for review on canvas or to BetterInternship?",
 ];
 
 function getApiBase(): string {
@@ -199,7 +198,11 @@ export default function HomePage() {
         const res = await fetch(`${getApiBase()}/api/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: trimmed, history }),
+          body: JSON.stringify({
+            message: trimmed,
+            history,
+            query_date: new Date().toISOString().slice(0, 10),
+          }),
         });
         if (!res.ok) {
           const t = await res.text();
@@ -252,7 +255,7 @@ export default function HomePage() {
             <SparklesIcon className="h-5 w-5 text-white" />
           </div>
           <div className="leading-tight">
-            <p className="font-semibold text-white text-sm tracking-tight">PractiGuide</p>
+            <p className="font-semibold text-white text-sm tracking-tight">Practi</p>
             <p className="text-[11px] text-slate-400">Internship Assistant</p>
           </div>
         </div>
@@ -292,16 +295,13 @@ export default function HomePage() {
               <SparklesIcon className="h-4 w-4 text-white" />
             </div>
             <div>
-              <p className="font-semibold text-slate-800 text-sm leading-tight">PractiGuide</p>
+              <p className="font-semibold text-slate-800 text-sm leading-tight">Practicum AI Assistant</p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 <span className="text-[11px] text-slate-500">Online · Knowledge base active</span>
               </div>
             </div>
           </div>
-          <span className="hidden sm:block text-[11px] font-medium text-slate-400 bg-slate-100 rounded-full px-3 py-1">
-            RAG · Groq
-          </span>
         </header>
 
         {/* Messages */}

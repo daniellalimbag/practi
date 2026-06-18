@@ -8,6 +8,10 @@ class HistoryTurn(BaseModel):
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1)
     history: list[HistoryTurn] = Field(default_factory=list)
+    query_date: Optional[str] = Field(
+        default=None,
+        description="Reference date for retrieval (YYYY-MM-DD). Defaults to today.",
+    )
 
 class SourceItem(BaseModel):
     source: str
@@ -18,3 +22,4 @@ class SourceItem(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
     sources: list[SourceItem]
+    query_date: str

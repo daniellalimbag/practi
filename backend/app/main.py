@@ -35,8 +35,16 @@ def health():
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(body: ChatRequest):
     try:
-        answer, sources = await rag_service.chat(body.message, body.history)
-        return ChatResponse(answer=answer, sources=sources)
+        answer, sources, effective_query_date = await rag_service.chat(
+            body.message,
+            body.history,
+            body.query_date,
+        )
+        return ChatResponse(
+            answer=answer,
+            sources=sources,
+            query_date=effective_query_date,
+        )
     except ValueError as e:
         # These are expected errors we handle (missing key, not initialized, etc.)
         error_msg = str(e)
