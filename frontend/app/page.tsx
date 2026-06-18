@@ -16,6 +16,7 @@ const SUGGESTED = [
   "What documents do I need to prepare for pre-deployment?",
   "Where do I upload my weekly reports and timesheets?",
   "Do I submit my MOA for review on canvas or to BetterInternship?",
+  "What do I do if the company has their own MOA template?",
 ];
 
 function getApiBase(): string {
@@ -318,8 +319,7 @@ export default function HomePage() {
                   Hi, I&apos;m PractiGuide
                 </h2>
                 <p className="text-sm text-slate-500 max-w-xs leading-relaxed mb-8">
-                  Your AI assistant for practicum and internship questions. Ask me anything about
-                  getting started, professional conduct, or learning goals.
+                  Ask me anything about practicum without having to contact your coordinator directly.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
                   {SUGGESTED.map((s) => (
