@@ -316,7 +316,7 @@ export default function HomePage() {
                   <SparklesIcon className="h-8 w-8 text-white" />
                 </div>
                 <h2 className="text-xl font-semibold text-slate-800 mb-1.5">
-                  Hi, I&apos;m PractiGuide
+                  Hi, I&apos;m Practi
                 </h2>
                 <p className="text-sm text-slate-500 max-w-xs leading-relaxed mb-8">
                   Ask me anything about practicum without having to contact your coordinator directly.
