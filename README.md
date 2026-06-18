@@ -7,7 +7,7 @@ RAG chatbot for **practicum and internship** students. The stack is a **Next.js*
 | Piece        | Technology                                                                 |
 | ------------ | ---------------------------------------------------------------------------- |
 | Frontend     | Next.js (App Router), Tailwind CSS, `NEXT_PUBLIC_API_URL` → backend         |
-| Backend      | FastAPI, LangChain, Groq (`llama3-8b-8192`), ChromaDB (in-memory), ST embeds |
+| Backend      | FastAPI, LangChain, Groq (`llama-3.1-8b-instant`), ChromaDB, ST embeds |
 | Embeddings   | `sentence-transformers/all-MiniLM-L6-v2`                                     |
 | Vector store | Chroma persisted to `backend/chroma_db/` (rebuilt if missing)         |
 
@@ -15,13 +15,14 @@ RAG chatbot for **practicum and internship** students. The stack is a **Next.js*
 
 ```text
 /backend
-    app/              # FastAPI application modules
+  app/              # FastAPI application modules
     main.py         # Entry point & routes
     rag.py          # RAG logic
     schemas.py      # Pydantic models
     config.py       # Settings & env
   ingest.py         # Standalone ingestion script
   docs/             # Knowledge base
+  chroma_db/        # Persisted vector index (generated locally)
   requirements.txt
   runtime.txt       # Python 3.11 for Render
   README.md         # Backend setup, testing, deploy

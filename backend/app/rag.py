@@ -191,8 +191,8 @@ class RAGService:
         try:
             llm = ChatGroq(
                 groq_api_key=settings.GROQ_API_KEY,
-                model_name="llama3-8b-8192",
-                temperature=0.1, # Slightly lower temperature for more factual consistency
+                model_name=settings.GROQ_MODEL,
+                temperature=0.1,
             )
 
             prompt = ChatPromptTemplate.from_messages(

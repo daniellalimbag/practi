@@ -4,7 +4,7 @@ import { KeyboardEvent, useCallback, useRef, useState } from "react";
 
 type Role = "user" | "assistant";
 type HistoryTurn = { role: Role; content: string };
-type SourceItem = { source: string; excerpt: string };
+type SourceItem = { source: string; excerpt: string; date?: string; type?: string };
 type ChatMessage = {
   id: string;
   role: Role;
@@ -82,11 +82,21 @@ function SourceCard({ source, msgId }: { source: SourceItem; msgId: string }) {
               <path d="M7 3.5A1.5 1.5 0 0 1 8.5 2h1.879a1.5 1.5 0 0 1 1.06.44l1.122 1.12A1.5 1.5 0 0 1 13 4.622V12.5a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 2 12.5v-9A1.5 1.5 0 0 1 3.5 2H5A1.5 1.5 0 0 1 6.5 3.5v.5H7v-.5Z" />
             </svg>
           </span>
+          {source.type && (
+            <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase text-slate-500">
+              {source.type}
+            </span>
+          )}
           <span className="font-medium text-slate-700 truncate">{source.source}</span>
         </div>
-        <ChevronDownIcon
-          className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-        />
+        <div className="flex shrink-0 items-center gap-2">
+          {source.date && (
+            <span className="text-[10px] text-slate-400">{source.date}</span>
+          )}
+          <ChevronDownIcon
+            className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          />
+        </div>
       </div>
       {open && source.excerpt && (
         <p className="mt-2.5 border-t border-slate-100 pt-2.5 text-slate-500 leading-relaxed line-clamp-4">
