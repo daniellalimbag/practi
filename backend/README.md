@@ -62,6 +62,8 @@ Place documents in `backend/docs/`.
 
 **Supported formats:** `.pdf`, `.docx`, `.pptx`, `.md`, `.txt`
 
+Slide PDFs are loaded with **PyMuPDF** when available and text is normalized to fix spaced-out characters (e.g. `P r a c t i c u m` → `Practicum`). After changing loaders or docs, re-run `python ingest.py`.
+
 **Naming convention:**
 
 - `A` = announcement, `S` = slides
@@ -78,13 +80,7 @@ Type and date are stored in metadata and returned in `sources[].type` and `sourc
 
 ### Date-aware retrieval
 
-Each chat request includes a **query date** (the user's local date from the frontend, or today on the server). Retrieval only includes documents whose filename date is **on or before** that date, so future or outdated-after-query-date docs are excluded.
-
-Re-run ingest after changing docs so `doc_date` metadata is present in `chroma_db/`:
-
-```powershell
-python ingest.py
-```
+Each chat request includes a **query date** (the user's local date). Retrieval is **semantic first**: any relevant document can be used, including older ones. Only documents dated **after** the query date are excluded. The assistant is instructed to mention **when information was recorded** when citing a source.
 
 ### Rebuilding the index
 

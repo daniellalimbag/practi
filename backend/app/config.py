@@ -16,10 +16,10 @@ class Settings(BaseSettings):
 
     DOCS_DIR: Path = Path(__file__).resolve().parent.parent / "docs"
     CHROMA_DB_DIR: Path = Path(__file__).resolve().parent.parent / "chroma_db"
-    CHUNK_SIZE: int = 800
-    CHUNK_OVERLAP: int = 120
-    RETRIEVER_K: int = 4
-    RETRIEVER_K_CANDIDATES: int = 12  # fetch more, then filter/rank by date
+    CHUNK_SIZE: int = 1000
+    CHUNK_OVERLAP: int = 150
+    RETRIEVER_K: int = 8
+    RETRIEVER_K_CANDIDATES: int = 24
 
     SYSTEM_PROMPT: str = """You are Practi, a helpful assistant for practicum and internship students. \
 Answer only using the provided context. If the answer is not in the context, say so politely."""

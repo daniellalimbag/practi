@@ -6,7 +6,6 @@ from langchain_chroma import Chroma
 from langchain_community.document_loaders import (
     DirectoryLoader,
     TextLoader,
-    PyPDFLoader,
     Docx2txtLoader,
     UnstructuredPowerPointLoader,
 )
@@ -19,47 +18,10 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.config import settings
 from app.date_utils import resolve_query_date
+from app.ingestion import load_all_documents, log_chunk_summary
 from app.schemas import HistoryTurn
 
 logger = logging.getLogger(__name__)
-
-DOC_TYPE_LABELS = {"A": "announcement", "S": "slides"}
-
-
-def parse_document_filename(stem: str) -> dict[str, str]:
-    """
-    Parse filenames:
-      <A|S>_<YYYYMMDD>
-      <A|S>_<YYYYMMDD>_<Number>
-    A = announcement, S = slides.
-    """
-    unknown = {
-        "doc_type": "unknown",
-        "doc_type_label": "unknown",
-        "doc_date": "unknown",
-        "doc_number": "1",
-    }
-    parts = stem.split("_")
-    if len(parts) < 2:
-        return unknown
-
-    kind = parts[0].upper()
-    if kind not in DOC_TYPE_LABELS:
-        return unknown
-
-    date_raw = parts[1]
-    if len(date_raw) != 8 or not date_raw.isdigit():
-        return {**unknown, "doc_type": kind, "doc_type_label": DOC_TYPE_LABELS[kind]}
-
-    doc_date = f"{date_raw[:4]}-{date_raw[4:6]}-{date_raw[6:8]}"
-    doc_number = parts[2] if len(parts) > 2 else "1"
-
-    return {
-        "doc_type": kind,
-        "doc_type_label": DOC_TYPE_LABELS[kind],
-        "doc_date": doc_date,
-        "doc_number": doc_number,
-    }
 
 
 class RAGService:
@@ -72,36 +34,7 @@ class RAGService:
         )
 
     def load_documents(self) -> list[Document]:
-        if not settings.DOCS_DIR.is_dir():
-            logger.warning("Docs directory missing at %s — using empty corpus", settings.DOCS_DIR)
-            return []
-
-        all_docs = []
-        
-        # Define loaders for different file types
-        loaders = [
-            DirectoryLoader(str(settings.DOCS_DIR), glob="**/*.txt", loader_cls=TextLoader, loader_kwargs={"encoding": "utf-8"}),
-            DirectoryLoader(str(settings.DOCS_DIR), glob="**/*.md", loader_cls=TextLoader, loader_kwargs={"encoding": "utf-8"}),
-            DirectoryLoader(str(settings.DOCS_DIR), glob="**/*.pdf", loader_cls=PyPDFLoader),
-            DirectoryLoader(str(settings.DOCS_DIR), glob="**/*.docx", loader_cls=Docx2txtLoader),
-            DirectoryLoader(str(settings.DOCS_DIR), glob="**/*.pptx", loader_cls=UnstructuredPowerPointLoader),
-        ]
-
-        for loader in loaders:
-            try:
-                loaded = loader.load()
-                # Post-process metadata to extract date and number from filename
-                for doc in loaded:
-                    src = doc.metadata.get("source", "")
-                    filename = Path(str(src)).stem
-                    meta = parse_document_filename(filename)
-                    doc.metadata.update(meta)
-                
-                all_docs.extend(loaded)
-            except Exception as e:
-                logger.error(f"Error loading documents with {loader.__class__.__name__}: {e}")
-
-        return all_docs
+        return load_all_documents()
 
     def build_vectorstore(self, persist: bool = False):
         raw_docs = self.load_documents()
@@ -114,6 +47,7 @@ class RAGService:
             add_start_index=True,
         )
         splits = splitter.split_documents(raw_docs)
+        log_chunk_summary(splits)
 
         persist_directory = str(settings.CHROMA_DB_DIR) if persist else None
         
@@ -150,38 +84,18 @@ class RAGService:
                 out.append(AIMessage(content=turn.content))
         return out
 
-    def _is_doc_valid_for_date(self, doc: Document, query_date: str) -> bool:
+    def _is_future_doc(self, doc: Document, query_date: str) -> bool:
         doc_date = doc.metadata.get("doc_date", "unknown")
-        return doc_date != "unknown" and doc_date <= query_date
+        return doc_date != "unknown" and doc_date > query_date
 
     def retrieve(self, message: str, query_date: str) -> list[Document]:
-        """Retrieve chunks published on or before query_date, preferring newer docs."""
+        """Retrieve by relevance; only exclude documents dated after the query."""
         if self.vectorstore is None:
             raise ValueError("Vector store not initialized")
 
-        date_filter = {"doc_date": {"$lte": query_date}}
         k = settings.RETRIEVER_K_CANDIDATES
-
-        try:
-            retrieved = self.vectorstore.similarity_search(
-                message,
-                k=k,
-                filter=date_filter,
-            )
-        except Exception as e:
-            logger.warning("Chroma date filter failed (%s); using post-filter fallback", e)
-            retrieved = self.vectorstore.similarity_search(message, k=k)
-
-        filtered = [d for d in retrieved if self._is_doc_valid_for_date(d, query_date)]
-
-        if not filtered:
-            logger.warning(
-                "No documents on or before %s; retrying without date filter",
-                query_date,
-            )
-            retrieved = self.vectorstore.similarity_search(message, k=k)
-            filtered = [d for d in retrieved if self._is_doc_valid_for_date(d, query_date)]
-
+        retrieved = self.vectorstore.similarity_search(message, k=k)
+        filtered = [d for d in retrieved if not self._is_future_doc(d, query_date)]
         return filtered[: settings.RETRIEVER_K]
 
     async def chat(
@@ -199,7 +113,7 @@ class RAGService:
             raise ValueError("GROQ_API_KEY is not configured on the server.")
 
         effective_query_date = resolve_query_date(message, query_date)
-        logger.info("Retrieving documents on or before %s", effective_query_date)
+        logger.info("Retrieving relevant documents (query date: %s)", effective_query_date)
 
         try:
             retrieved = self.retrieve(message, effective_query_date)
@@ -243,8 +157,10 @@ class RAGService:
                         "system",
                         settings.SYSTEM_PROMPT
                         + "\n\nThe user's query date is {query_date}. "
-                        "Only documents published on or before this date are included in the context. "
-                        "When multiple documents apply, prefer the most recent ones. "
+                        "Use any relevant context below, including older documents, if they answer the question. "
+                        "Documents dated after the query date are not included. "
+                        "When you rely on information from a source, mention when it was recorded using that source's date. "
+                        "If newer and older sources conflict, note the dates and prefer the newer one unless the question is about history. "
                         "CRITICAL: Answer ONLY using the provided context. "
                         "If the answer is not contained within the context below, state that you do not have enough information to answer. "
                         "Do not use outside knowledge.\n\nContext:\n{context}",

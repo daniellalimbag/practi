@@ -1,4 +1,4 @@
-from app.rag import parse_document_filename
+from app.doc_metadata import parse_document_filename
 
 
 def test_parse_announcement_single():
