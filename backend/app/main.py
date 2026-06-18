@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    rag_service.build_vectorstore()
+    # Startup: load persisted vector store or build if missing
+    rag_service.load_vectorstore()
     yield
     # Shutdown (nothing to clean up for in-memory Chroma)
 

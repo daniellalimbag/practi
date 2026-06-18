@@ -69,7 +69,7 @@ class RAGService:
 
         return all_docs
 
-    def build_vectorstore(self):
+    def build_vectorstore(self, persist: bool = False):
         raw_docs = self.load_documents()
         if not raw_docs:
             logger.warning("No documents loaded from %s", settings.DOCS_DIR)
@@ -81,13 +81,31 @@ class RAGService:
         )
         splits = splitter.split_documents(raw_docs)
 
+        persist_directory = str(settings.CHROMA_DB_DIR) if persist else None
+        
         self.vectorstore = Chroma.from_documents(
             documents=splits,
             embedding=self.embeddings,
             collection_name="practi_kb",
-            persist_directory=None,
+            persist_directory=persist_directory,
         )
-        logger.info("Chroma index built with %s chunks from %s files", len(splits), len(raw_docs))
+        logger.info(
+            "Chroma index built with %s chunks from %s files. Persisted: %s", 
+            len(splits), len(raw_docs), persist
+        )
+
+    def load_vectorstore(self):
+        if not settings.CHROMA_DB_DIR.exists():
+            logger.info("Chroma DB directory not found at %s. Building from docs...", settings.CHROMA_DB_DIR)
+            self.build_vectorstore(persist=True)
+            return
+
+        self.vectorstore = Chroma(
+            collection_name="practi_kb",
+            embedding_function=self.embeddings,
+            persist_directory=str(settings.CHROMA_DB_DIR),
+        )
+        logger.info("Loaded persisted Chroma index from %s", settings.CHROMA_DB_DIR)
 
     def history_to_messages(self, history: list[HistoryTurn]) -> list[BaseMessage]:
         out: list[BaseMessage] = []

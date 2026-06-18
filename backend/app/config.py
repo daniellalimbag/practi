@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
 
     DOCS_DIR: Path = Path(__file__).resolve().parent.parent / "docs"
+    CHROMA_DB_DIR: Path = Path(__file__).resolve().parent.parent / "chroma_db"
     CHUNK_SIZE: int = 800
     CHUNK_OVERLAP: int = 120
     RETRIEVER_K: int = 4

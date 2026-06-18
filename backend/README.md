@@ -35,6 +35,11 @@ CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```powershell
 cd backend
 .\.venv\Scripts\Activate.ps1
+
+# Optional: Ingest documents (persists to ./chroma_db)
+python ingest.py
+
+# Run API (will build index if ./chroma_db is missing)
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -66,7 +71,15 @@ Examples:
 
 The date is stored in metadata and returned in `sources[].date`.
 
-Restart the server after adding or changing files so Chroma rebuilds from disk.
+### Rebuilding the index
+
+If you add or change files, you can rebuild the index by running:
+
+```powershell
+python ingest.py
+```
+
+Alternatively, delete the `backend/chroma_db/` folder and restart the server.
 
 ## Tests
 
@@ -91,7 +104,7 @@ Tests mock Groq and do not require a real API key.
 **Notes:**
 
 - First deploy may take several minutes while `sentence-transformers` downloads the embedding model.
-- Chroma is in-memory; the index is rebuilt on every process start from `backend/docs`.
+- Chroma is persisted to disk at `backend/chroma_db/`. The index is loaded on startup; if missing, it is rebuilt from `backend/docs/`.
 - Use `GET /health` as the Render health check path.
 
 ## API contract
