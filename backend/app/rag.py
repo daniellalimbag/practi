@@ -22,6 +22,45 @@ from app.schemas import HistoryTurn
 
 logger = logging.getLogger(__name__)
 
+DOC_TYPE_LABELS = {"A": "announcement", "S": "slides"}
+
+
+def parse_document_filename(stem: str) -> dict[str, str]:
+    """
+    Parse filenames:
+      <A|S>_<YYYYMMDD>
+      <A|S>_<YYYYMMDD>_<Number>
+    A = announcement, S = slides.
+    """
+    unknown = {
+        "doc_type": "unknown",
+        "doc_type_label": "unknown",
+        "doc_date": "unknown",
+        "doc_number": "1",
+    }
+    parts = stem.split("_")
+    if len(parts) < 2:
+        return unknown
+
+    kind = parts[0].upper()
+    if kind not in DOC_TYPE_LABELS:
+        return unknown
+
+    date_raw = parts[1]
+    if len(date_raw) != 8 or not date_raw.isdigit():
+        return {**unknown, "doc_type": kind, "doc_type_label": DOC_TYPE_LABELS[kind]}
+
+    doc_date = f"{date_raw[:4]}-{date_raw[4:6]}-{date_raw[6:8]}"
+    doc_number = parts[2] if len(parts) > 2 else "1"
+
+    return {
+        "doc_type": kind,
+        "doc_type_label": DOC_TYPE_LABELS[kind],
+        "doc_date": doc_date,
+        "doc_number": doc_number,
+    }
+
+
 class RAGService:
     def __init__(self):
         self.vectorstore: Optional[Chroma] = None
@@ -54,14 +93,8 @@ class RAGService:
                 for doc in loaded:
                     src = doc.metadata.get("source", "")
                     filename = Path(str(src)).stem
-                    # Naming convention: <Date>_<Number>
-                    if "_" in filename:
-                        parts = filename.split("_")
-                        doc.metadata["doc_date"] = parts[0]
-                        doc.metadata["doc_number"] = parts[1]
-                    else:
-                        doc.metadata["doc_date"] = "unknown"
-                        doc.metadata["doc_number"] = "0"
+                    meta = parse_document_filename(filename)
+                    doc.metadata.update(meta)
                 
                 all_docs.extend(loaded)
             except Exception as e:
@@ -137,16 +170,20 @@ class RAGService:
         for doc in retrieved:
             src = doc.metadata.get("source", "unknown")
             doc_date = doc.metadata.get("doc_date", "unknown")
+            doc_type_label = doc.metadata.get("doc_type_label", "unknown")
             label = Path(str(src)).name
             excerpt = (doc.page_content or "").strip()
             if len(excerpt) > 400:
                 excerpt = excerpt[:400].rsplit(" ", 1)[0] + "…"
-            
-            context_blocks.append(f"[Source: {label}, Date: {doc_date}]\n{doc.page_content}")
+
+            context_blocks.append(
+                f"[Source: {label}, Type: {doc_type_label}, Date: {doc_date}]\n{doc.page_content}"
+            )
             sources.append({
                 "source": label,
                 "excerpt": excerpt,
-                "date": doc_date if doc_date != "unknown" else None
+                "date": doc_date if doc_date != "unknown" else None,
+                "type": doc_type_label if doc_type_label != "unknown" else None,
             })
 
         context_text = "\n\n---\n\n".join(context_blocks) if context_blocks else "(no context retrieved)"

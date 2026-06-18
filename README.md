@@ -71,7 +71,11 @@ pytest -v
 
 ## Knowledge base
 
-Add files to `backend/docs/` using the naming convention `<Date>_<Number>.<ext>` (e.g. `2026-06-17_01.pdf`).
+Add files to `backend/docs/` using this naming convention:
+
+- `A` = announcement, `S` = slides
+- One per date: `<A|S>_<YYYYMMDD>.<ext>` (e.g. `A_20260617.pdf`)
+- Multiple same date: `<A|S>_<YYYYMMDD>_<Number>.<ext>` (e.g. `S_20260617_01.pptx`)
 
 Supported: `.pdf`, `.docx`, `.pptx`, `.md`, `.txt`
 

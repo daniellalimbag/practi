@@ -6,7 +6,7 @@ type Role = "user" | "assistant";
 
 type HistoryTurn = { role: Role; content: string };
 
-type SourceItem = { source: string; excerpt: string; date?: string };
+type SourceItem = { source: string; excerpt: string; date?: string; type?: string };
 
 type ChatMessage = {
   id: string;
@@ -128,11 +128,18 @@ export default function HomePage() {
                           className="rounded-lg bg-white p-2 text-xs text-slate-600 ring-1 ring-slate-100"
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-medium text-slate-800">
-                              {s.source}
-                            </span>
+                            <div className="flex min-w-0 items-center gap-2">
+                              {s.type && (
+                                <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase text-slate-500">
+                                  {s.type}
+                                </span>
+                              )}
+                              <span className="truncate font-medium text-slate-800">
+                                {s.source}
+                              </span>
+                            </div>
                             {s.date && (
-                              <span className="text-[10px] text-slate-400">
+                              <span className="shrink-0 text-[10px] text-slate-400">
                                 {s.date}
                               </span>
                             )}

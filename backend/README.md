@@ -62,14 +62,19 @@ Place documents in `backend/docs/`.
 
 **Supported formats:** `.pdf`, `.docx`, `.pptx`, `.md`, `.txt`
 
-**Naming convention:** `<Date>_<Number>.<ext>`
+**Naming convention:**
+
+- `A` = announcement, `S` = slides
+- One document on a date: `<A|S>_<YYYYMMDD>.<ext>`
+- Multiple on the same date: `<A|S>_<YYYYMMDD>_<Number>.<ext>`
 
 Examples:
 
-- `2026-06-17_01.pdf`
-- `2026-06-17_02.docx`
+- `A_20260617.pdf` — announcement, 17 June 2026
+- `S_20260617_01.pptx` — first slides deck that day
+- `S_20260617_02.pptx` — second slides deck that day
 
-The date is stored in metadata and returned in `sources[].date`.
+Type and date are stored in metadata and returned in `sources[].type` and `sources[].date`.
 
 ### Rebuilding the index
 
@@ -112,5 +117,5 @@ Tests mock Groq and do not require a real API key.
 ```text
 POST /api/chat
 Request:  { "message": string, "history": [{ "role": "user"|"assistant", "content": string }] }
-Response: { "answer": string, "sources": [{ "source": string, "excerpt": string, "date": string|null }] }
+Response: { "answer": string, "sources": [{ "source": string, "excerpt": string, "date": string|null, "type": "announcement"|"slides"|null }] }
 ```

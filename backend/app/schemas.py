@@ -13,6 +13,7 @@ class SourceItem(BaseModel):
     source: str
     excerpt: str
     date: Optional[str] = None
+    type: Optional[str] = None  # "announcement" or "slides"
 
 class ChatResponse(BaseModel):
     answer: str
