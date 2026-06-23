@@ -1,6 +1,7 @@
 "use client";
 
 import { KeyboardEvent, useCallback, useRef, useState } from "react";
+import ThemeToggle from "./ThemeToggle";
 
 type Role = "user" | "assistant";
 type HistoryTurn = { role: Role; content: string };
@@ -51,6 +52,14 @@ function ChevronDownIcon({ className }: { className?: string }) {
   );
 }
 
+function ChevronLeftIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 0 1 0 1.06L9.06 10l3.73 3.71a.75.75 0 1 1-1.06 1.06l-4.25-4.24a.75.75 0 0 1 0-1.06l4.25-4.24a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
 /* ── Sub-components ──────────────────────────────────────────────── */
 
 function TypingDots() {
@@ -73,7 +82,7 @@ function SourceCard({ source, msgId }: { source: SourceItem; msgId: string }) {
     <button
       key={`${msgId}-${source.source}`}
       onClick={() => setOpen((v) => !v)}
-      className="w-full text-left rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs shadow-sm transition hover:border-brand-300 hover:bg-brand-50/60"
+      className="w-full text-left rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs shadow-sm transition hover:border-brand-300 hover:bg-brand-50/60 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-brand-500 dark:hover:bg-slate-700"
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -83,11 +92,11 @@ function SourceCard({ source, msgId }: { source: SourceItem; msgId: string }) {
             </svg>
           </span>
           {source.type && (
-            <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase text-slate-500">
+            <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase text-slate-500 dark:bg-slate-700 dark:text-slate-300">
               {source.type}
             </span>
           )}
-          <span className="font-medium text-slate-700 truncate">{source.source}</span>
+          <span className="font-medium text-slate-700 truncate dark:text-slate-200">{source.source}</span>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {source.date && (
@@ -99,7 +108,7 @@ function SourceCard({ source, msgId }: { source: SourceItem; msgId: string }) {
         </div>
       </div>
       {open && source.excerpt && (
-        <p className="mt-2.5 border-t border-slate-100 pt-2.5 text-slate-500 leading-relaxed line-clamp-4">
+        <p className="mt-2.5 border-t border-slate-100 pt-2.5 text-slate-500 leading-relaxed line-clamp-4 dark:border-slate-700 dark:text-slate-400">
           {source.excerpt}
         </p>
       )}
@@ -134,7 +143,7 @@ function Message({ msg }: { msg: ChatMessage }) {
           className={`rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
             isUser
               ? "rounded-tr-sm bg-gradient-to-br from-brand-600 to-brand-700 text-white"
-              : "rounded-tl-sm border border-slate-100 bg-white text-slate-800"
+              : "rounded-tl-sm border border-slate-100 bg-white text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
           }`}
         >
           <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -142,7 +151,7 @@ function Message({ msg }: { msg: ChatMessage }) {
 
         {!isUser && msg.sources && msg.sources.length > 0 && (
           <div className="w-full space-y-1.5">
-            <p className="px-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+            <p className="px-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
               Sources
             </p>
             {msg.sources.map((s) => (
@@ -159,6 +168,7 @@ function Message({ msg }: { msg: ChatMessage }) {
 
 export default function HomePage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [collapsed, setCollapsed] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -246,63 +256,86 @@ export default function HomePage() {
   const isEmpty = messages.length === 0 && !loading;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
 
       {/* ── Sidebar ── */}
-      <aside className="hidden md:flex w-60 flex-col bg-brand-800 text-white shrink-0">
+      <aside
+        className={`hidden md:flex flex-col bg-brand-800 text-white shrink-0 transition-[width] duration-200 ${
+          collapsed ? "w-16" : "w-60"
+        }`}
+      >
         {/* Brand */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
+        <div
+          className={`flex items-center border-b border-white/10 py-5 ${
+            collapsed ? "justify-center px-2" : "gap-3 px-5"
+          }`}
+        >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-800 shadow-lg shadow-brand-900/40">
             <SparklesIcon className="h-5 w-5 text-white" />
           </div>
-          <div className="leading-tight">
-            <p className="font-semibold text-white text-sm tracking-tight">Practi</p>
-            <p className="text-[11px] text-slate-400">Internship Assistant</p>
-          </div>
+          {!collapsed && (
+            <>
+              <div className="leading-tight flex-1 min-w-0">
+                <p className="font-semibold text-white text-sm tracking-tight">Practi</p>
+                <p className="text-[11px] text-slate-400">Internship Assistant</p>
+              </div>
+              <button
+                onClick={() => setCollapsed(true)}
+                aria-label="Collapse sidebar"
+                title="Collapse sidebar"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-300 transition hover:bg-white/10 hover:text-white"
+              >
+                <ChevronLeftIcon className="h-4 w-4" />
+              </button>
+            </>
+          )}
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-          <p className="px-2 mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
-            Suggested Topics
-          </p>
-          {SUGGESTED.map((s) => (
+        {/* Expand button (collapsed only) */}
+        {collapsed && (
+          <div className="flex justify-center border-b border-white/10 py-2">
             <button
-              key={s}
-              onClick={() => send(s)}
-              disabled={loading}
-              className="w-full text-left rounded-lg px-3 py-2.5 text-[13px] text-slate-400 transition hover:bg-white/8 hover:text-white disabled:pointer-events-none"
+              onClick={() => setCollapsed(false)}
+              aria-label="Expand sidebar"
+              title="Expand sidebar"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-300 transition hover:bg-white/10 hover:text-white"
             >
-              {s}
+              <ChevronLeftIcon className="h-4 w-4 rotate-180" />
             </button>
-          ))}
-        </nav>
+          </div>
+        )}
+
+        {/* Nav (empty for now — keeps footer pinned to bottom) */}
+        <nav className="flex-1 overflow-y-auto px-3 py-4" />
 
         {/* Footer */}
-        <div className="border-t border-white/10 px-5 py-4 space-y-0.5">
-          <p className="text-[11px] text-slate-500">Powered by</p>
-          <p className="text-[12px] font-medium text-slate-300">Groq · LLaMA 3 · ChromaDB</p>
-        </div>
+        {!collapsed && (
+          <div className="border-t border-white/10 px-5 py-4 space-y-0.5">
+            <p className="text-[11px] text-slate-500">Powered by</p>
+            <p className="text-[12px] font-medium text-slate-300">Groq · LLaMA 3 · ChromaDB</p>
+          </div>
+        )}
       </aside>
 
       {/* ── Main area ── */}
       <div className="flex flex-1 flex-col min-w-0">
 
         {/* Top bar */}
-        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3.5 shadow-sm shrink-0">
+        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3.5 shadow-sm shrink-0 dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center gap-3">
             {/* Mobile logo */}
             <div className="md:hidden flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-800 shrink-0">
               <SparklesIcon className="h-4 w-4 text-white" />
             </div>
             <div>
-              <p className="font-semibold text-slate-800 text-sm leading-tight">Practicum AI Assistant</p>
+              <p className="font-semibold text-slate-800 text-sm leading-tight dark:text-slate-100">Practicum AI Assistant</p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                <span className="text-[11px] text-slate-500">Online · Knowledge base active</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">Online · Knowledge base active</span>
               </div>
             </div>
           </div>
+          <ThemeToggle />
         </header>
 
         {/* Messages */}
@@ -315,10 +348,10 @@ export default function HomePage() {
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-800 shadow-lg shadow-brand-200 mb-5">
                   <SparklesIcon className="h-8 w-8 text-white" />
                 </div>
-                <h2 className="text-xl font-semibold text-slate-800 mb-1.5">
+                <h2 className="text-xl font-semibold text-slate-800 mb-1.5 dark:text-slate-100">
                   Hi, I&apos;m Practi
                 </h2>
-                <p className="text-sm text-slate-500 max-w-xs leading-relaxed mb-8">
+                <p className="text-sm text-slate-500 max-w-xs leading-relaxed mb-8 dark:text-slate-400">
                   Ask me anything about practicum without having to contact your coordinator directly.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
@@ -326,7 +359,7 @@ export default function HomePage() {
                     <button
                       key={s}
                       onClick={() => send(s)}
-                      className="rounded-xl border border-slate-200 bg-white p-3.5 text-left text-sm text-slate-600 shadow-sm transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700"
+                      className="rounded-xl border border-slate-200 bg-white p-3.5 text-left text-sm text-slate-600 shadow-sm transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-brand-500 dark:hover:bg-slate-700 dark:hover:text-brand-200"
                     >
                       {s}
                     </button>
@@ -342,7 +375,7 @@ export default function HomePage() {
                 {loading && (
                   <div className="flex gap-3 animate-fade-up">
                     <BotAvatar />
-                    <div className="rounded-2xl rounded-tl-sm border border-slate-100 bg-white px-4 py-3.5 shadow-sm">
+                    <div className="rounded-2xl rounded-tl-sm border border-slate-100 bg-white px-4 py-3.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
                       <TypingDots />
                     </div>
                   </div>
@@ -365,9 +398,9 @@ export default function HomePage() {
         )}
 
         {/* Input bar */}
-        <div className="border-t border-slate-200 bg-white px-4 py-4 sm:px-6 shrink-0">
+        <div className="border-t border-slate-200 bg-white px-4 py-4 sm:px-6 shrink-0 dark:border-slate-800 dark:bg-slate-900">
           <div className="mx-auto max-w-2xl">
-            <div className="flex items-end gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm transition focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-400/20">
+            <div className="flex items-end gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm transition focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-400/20 dark:border-slate-700 dark:bg-slate-800">
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -377,7 +410,7 @@ export default function HomePage() {
                 placeholder="Ask a question about your internship…"
                 rows={1}
                 disabled={loading}
-                className="flex-1 resize-none bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none max-h-40 leading-relaxed"
+                className="flex-1 resize-none bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none max-h-40 leading-relaxed dark:text-slate-100 dark:placeholder:text-slate-500"
               />
               <button
                 onClick={() => send(input)}
@@ -387,7 +420,7 @@ export default function HomePage() {
                 <SendIcon className="h-4 w-4" />
               </button>
             </div>
-            <p className="mt-2 text-center text-[11px] text-slate-400">
+            <p className="mt-2 text-center text-[11px] text-slate-400 dark:text-slate-500">
               Enter to send &middot; Shift+Enter for new line
             </p>
           </div>
