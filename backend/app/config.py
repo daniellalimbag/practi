@@ -1,6 +1,10 @@
 from pathlib import Path
+import os
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Disable Chroma anonymized telemetry before chromadb is imported elsewhere.
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
 
 
 class Settings(BaseSettings):
@@ -12,6 +16,13 @@ class Settings(BaseSettings):
 
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama-3.1-8b-instant"
+    
+    LLM_PROVIDER: str = "groq"  # "groq" or "ollama"
+    LLM_TEMPERATURE: float = 0.1
+    
+    OLLAMA_MODEL: str = "llama3.1:8b"
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+
     CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
 
     DOCS_DIR: Path = Path(__file__).resolve().parent.parent / "docs"

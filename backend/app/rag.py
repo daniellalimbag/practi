@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional
 
 from langchain_chroma import Chroma
+from chromadb.config import Settings as ChromaSettings
 from langchain_community.document_loaders import (
     DirectoryLoader,
     TextLoader,
@@ -13,15 +14,17 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_groq import ChatGroq
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.config import settings
 from app.date_utils import resolve_query_date
 from app.ingestion import load_all_documents, log_chunk_summary
+from app.llm import get_active_model_name, get_chat_model, resolve_provider
 from app.schemas import HistoryTurn
 
 logger = logging.getLogger(__name__)
+
+CHROMA_CLIENT_SETTINGS = ChromaSettings(anonymized_telemetry=False)
 
 
 class RAGService:
@@ -56,6 +59,7 @@ class RAGService:
             embedding=self.embeddings,
             collection_name="practi_kb",
             persist_directory=persist_directory,
+            client_settings=CHROMA_CLIENT_SETTINGS,
         )
         logger.info(
             "Chroma index built with %s chunks from %s files. Persisted: %s", 
@@ -72,6 +76,7 @@ class RAGService:
             collection_name="practi_kb",
             embedding_function=self.embeddings,
             persist_directory=str(settings.CHROMA_DB_DIR),
+            client_settings=CHROMA_CLIENT_SETTINGS,
         )
         logger.info("Loaded persisted Chroma index from %s", settings.CHROMA_DB_DIR)
 
@@ -103,14 +108,12 @@ class RAGService:
         message: str,
         history: list[HistoryTurn],
         query_date: str | None = None,
+        llm_provider: str | None = None,
+        ollama_model: str | None = None,
     ):
         if self.vectorstore is None:
             logger.error("Vector store not initialized")
             raise ValueError("Vector store not initialized. Please ensure documents are loaded.")
-
-        if not settings.GROQ_API_KEY:
-            logger.error("GROQ_API_KEY is missing")
-            raise ValueError("GROQ_API_KEY is not configured on the server.")
 
         effective_query_date = resolve_query_date(message, query_date)
         logger.info("Retrieving relevant documents (query date: %s)", effective_query_date)
@@ -145,10 +148,9 @@ class RAGService:
         context_text = "\n\n---\n\n".join(context_blocks) if context_blocks else "(no context retrieved)"
 
         try:
-            llm = ChatGroq(
-                groq_api_key=settings.GROQ_API_KEY,
-                model_name=settings.GROQ_MODEL,
-                temperature=0.1,
+            llm = get_chat_model(
+                provider=llm_provider,
+                ollama_model=ollama_model,
             )
 
             prompt = ChatPromptTemplate.from_messages(
@@ -182,8 +184,8 @@ class RAGService:
             )
             answer = result.content if hasattr(result, "content") else str(result)
         except Exception as e:
-            logger.error(f"Error calling Groq API: {e}")
-            raise ValueError("The assistant is currently unavailable. Please try again later.")
+            logger.error(f"Error calling LLM provider: {e}")
+            raise ValueError(f"The assistant is currently unavailable: {e}")
 
         # Deduplicate sources by filename while preserving order
         seen = set()
@@ -193,6 +195,12 @@ class RAGService:
                 seen.add(s["source"])
                 unique_sources.append(s)
 
-        return str(answer), unique_sources, effective_query_date
+        return (
+            str(answer),
+            unique_sources,
+            effective_query_date,
+            resolve_provider(llm_provider),
+            get_active_model_name(llm_provider, ollama_model),
+        )
 
 rag_service = RAGService()
