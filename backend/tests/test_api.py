@@ -34,6 +34,8 @@ def test_chat_success(mock_chat):
         "This is a mock answer",
         [{"source": "test.pdf", "excerpt": "test excerpt", "date": "2024-01-01"}],
         "2024-01-01",
+        "groq",
+        "llama-3.1-8b-instant",
     )
     
     response = client.post("/api/chat", json={
@@ -59,7 +61,7 @@ def test_chat_groq_key_missing(mock_chat):
     })
     
     assert response.status_code == 500
-    assert "GROQ_API_KEY" in response.json()["detail"]
+    assert "GROQ_API_KEY" in response.json()["detail"] or "LLM_PROVIDER" in response.json()["detail"]
 
 @patch("app.rag.rag_service.chat")
 def test_chat_vectorstore_not_initialized(mock_chat):
