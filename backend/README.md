@@ -4,8 +4,9 @@ FastAPI RAG service for the practi chatbot.
 
 ## Requirements
 
-- Python **3.11** (see `runtime.txt` for Render)
-- Groq API key
+- Python **3.11**
+- **Local:** [Ollama](https://ollama.com/) running with a pulled model (e.g. `ollama pull llama3.1:8b`)
+- **Cloud / deploy:** Groq API key
 
 ## Setup
 
@@ -13,56 +14,38 @@ FastAPI RAG service for the practi chatbot.
 cd backend
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Copy env file and add your key:
-
-```powershell
-copy .env.example .env
-```
-
-Edit `backend/.env`:
-
-```env
-GROQ_API_KEY=your_groq_api_key
-CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-```
+Optional: `copy .env.example .env` — only needed for **Groq** (`GROQ_API_KEY`) or production `CORS_ORIGINS`. Local Ollama works without a `.env` file; pick **Local** in the frontend sidebar.
 
 ## Run locally
 
 ```powershell
 cd backend
 .\.venv\Scripts\Activate.ps1
-
-# Optional: Ingest documents (persists to ./chroma_db)
-python ingest.py
-
-# Run API (will build index if ./chroma_db is missing)
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 - Health: `GET http://localhost:8000/health`
 - Swagger: `http://localhost:8000/docs`
-- Chat: `POST http://localhost:8000/api/chat`
 
-Example request:
+Run `python ingest.py` after adding or changing files in `backend/docs/`. Not needed on every startup — the server reuses `backend/chroma_db/` if it exists.
 
-```json
-{
-  "message": "What should I do before day one?",
-  "history": []
-}
-```
+## LLM providers
+
+| Mode | How | API key? |
+|------|-----|----------|
+| **Local** | Select **Local** in the frontend sidebar | No |
+| **Cloud** | Select **Cloud** in the sidebar, or set `GROQ_API_KEY` in `.env` | Yes (Groq) |
+
+Each chat request tells the backend which provider to use. Ollama defaults (`localhost:11434`, `llama3.1:8b`) are built in — no `.env` required for local mode.
 
 ## Knowledge base
 
 Place documents in `backend/docs/`.
 
-**Supported formats:** `.pdf`, `.docx`, `.pptx`, `.md`, `.txt`
-
-Slide PDFs are loaded with **PyMuPDF** when available and text is normalized to fix spaced-out characters (e.g. `P r a c t i c u m` → `Practicum`). After changing loaders or docs, re-run `python ingest.py`.
+**Formats:** `.pdf`, `.docx`, `.pptx`, `.md`, `.txt`
 
 **Naming convention:**
 
@@ -76,52 +59,22 @@ Examples:
 - `S_20260617_01.pptx` — first slides deck that day
 - `S_20260617_02.pptx` — second slides deck that day
 
-Type and date are stored in metadata and returned in `sources[].type` and `sources[].date`.
+After changing docs: `python ingest.py`
 
-### Date-aware retrieval
-
-Each chat request includes a **query date** (the user's local date). Retrieval is **semantic first**: any relevant document can be used, including older ones. Only documents dated **after** the query date are excluded. The assistant is instructed to mention **when information was recorded** when citing a source.
-
-### Rebuilding the index
-
-If you add or change files, you can rebuild the index by running:
-
-```powershell
-python ingest.py
-```
-
-Alternatively, delete the `backend/chroma_db/` folder and restart the server.
+Debug the index: `python inspect_db.py stats`
 
 ## Tests
 
 ```powershell
-cd backend
-.\.venv\Scripts\Activate.ps1
 pytest -v
 ```
 
-Tests mock Groq and do not require a real API key.
-
 ## Deploy to Render
 
-1. Create a **Web Service** with root directory `backend`.
-2. Render uses Python 3.11 from `runtime.txt`.
-3. **Build command:** `pip install -r requirements.txt`
-4. **Start command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-5. **Environment variables:**
-   - `GROQ_API_KEY` (required)
-   - `CORS_ORIGINS` (your Vercel URL, e.g. `https://your-app.vercel.app`)
+1. Root directory: `backend`
+2. Build: `pip install -r requirements.txt`
+3. Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+4. Health check: `/health`
+5. Env: `GROQ_API_KEY`, `CORS_ORIGINS` (your Vercel URL)
 
-**Notes:**
-
-- First deploy may take several minutes while `sentence-transformers` downloads the embedding model.
-- Chroma is persisted to disk at `backend/chroma_db/`. The index is loaded on startup; if missing, it is rebuilt from `backend/docs/`.
-- Use `GET /health` as the Render health check path.
-
-## API contract
-
-```text
-POST /api/chat
-Request:  { "message": string, "history": [...], "query_date": "YYYY-MM-DD" (optional) }
-Response: { "answer": string, "sources": [...], "query_date": string }
-```
+Ollama is local-only; Render cannot reach Ollama on your machine.

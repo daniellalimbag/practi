@@ -4,101 +4,41 @@ RAG chatbot for **practicum and internship** students. The stack is a **Next.js*
 
 ## Architecture
 
-| Piece        | Technology                                                                 |
-| ------------ | ---------------------------------------------------------------------------- |
-| Frontend     | Next.js (App Router), Tailwind CSS, `NEXT_PUBLIC_API_URL` → backend         |
-| Backend      | FastAPI, LangChain, Groq (`llama-3.1-8b-instant`), ChromaDB, ST embeds |
-| Embeddings   | `sentence-transformers/all-MiniLM-L6-v2`                                     |
-| Vector store | Chroma persisted to `backend/chroma_db/` (rebuilt if missing)         |
-
-## Repository layout
-
-```text
-/backend
-  app/              # FastAPI application modules
-    main.py         # Entry point & routes
-    rag.py          # RAG logic
-    schemas.py      # Pydantic models
-    config.py       # Settings & env
-  ingest.py         # Standalone ingestion script
-  docs/             # Knowledge base
-  chroma_db/        # Persisted vector index (generated locally)
-  requirements.txt
-  runtime.txt       # Python 3.11 for Render
-  README.md         # Backend setup, testing, deploy
-/frontend           # Next.js app
-README.md
-LICENSE
-```
+| Piece | Technology |
+| ----- | ---------- |
+| Frontend | Next.js, Tailwind CSS |
+| Backend | FastAPI, LangChain, Groq or Ollama, ChromaDB |
 
 ## Local development
 
-### Backend
-
-Use **Python 3.11**. See [backend/README.md](backend/README.md) for full setup.
+**Backend:**
 
 ```powershell
 cd backend
-py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-copy .env.example .env
-# edit .env and set GROQ_API_KEY
-python ingest.py  # Optional: pre-ingest docs
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Frontend
+**Frontend:**
 
 ```powershell
 cd frontend
-copy .env.example .env.local
-# set NEXT_PUBLIC_API_URL=http://localhost:8000
 npm install
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Testing
+- **Local LLM:** install Ollama, pull a model, select **Local** in the sidebar. No `.env` needed.
+- **Cloud LLM:** set `GROQ_API_KEY` in `backend/.env`, select **Cloud** in the sidebar.
+- **Docs:** add files to `backend/docs/`, then run `python ingest.py` once.
 
-### Backend
-
-```powershell
-cd backend
-.\.venv\Scripts\Activate.ps1
-pytest -v
-```
-
-## Knowledge base
-
-Add files to `backend/docs/` using this naming convention:
-
-- `A` = announcement, `S` = slides
-- One per date: `<A|S>_<YYYYMMDD>.<ext>` (e.g. `A_20260617.pdf`)
-- Multiple same date: `<A|S>_<YYYYMMDD>_<Number>.<ext>` (e.g. `S_20260617_01.pptx`)
-
-Supported: `.pdf`, `.docx`, `.pptx`, `.md`, `.txt`
+See [backend/README.md](backend/README.md) for setup, ingest, and deploy details.
 
 ## Deploy
 
-### Backend (Render)
-
-1. New **Web Service**, root directory **`backend`**.
-2. Python **3.11** via `backend/runtime.txt`.
-3. **Build command:** `pip install -r requirements.txt`
-4. **Start command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-5. **Health check path:** `/health`
-6. **Environment variables:**
-   - `GROQ_API_KEY`
-   - `CORS_ORIGINS` (your Vercel URL)
-
-### Frontend (Vercel)
-
-1. New project, root directory **`frontend`**.
-2. **Environment variable:** `NEXT_PUBLIC_API_URL` = your Render backend URL.
-
-Ensure `CORS_ORIGINS` on the backend includes your Vercel domain.
+- **Backend (Render):** root `backend`, env `GROQ_API_KEY` + `CORS_ORIGINS`
+- **Frontend (Vercel):** root `frontend`, env `NEXT_PUBLIC_API_URL`
 
 ## License
 
