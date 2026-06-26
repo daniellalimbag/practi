@@ -1,17 +1,30 @@
 "use client";
 
-import { KeyboardEvent, useCallback, useRef, useState } from "react";
+import { KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import ThemeToggle from "./ThemeToggle";
 
 type Role = "user" | "assistant";
+type LlmProvider = "groq" | "ollama";
 type HistoryTurn = { role: Role; content: string };
 type SourceItem = { source: string; excerpt: string; date?: string; type?: string };
+type LlmConfig = {
+  default_provider: LlmProvider;
+  groq_model: string;
+  groq_available: boolean;
+  default_ollama_model: string;
+  ollama_base_url: string;
+  ollama_available: boolean;
+  ollama_models: string[];
+};
 type ChatMessage = {
   id: string;
   role: Role;
   content: string;
   sources?: SourceItem[];
 };
+
+const PROVIDER_STORAGE_KEY = "practi:llm-provider";
+const OLLAMA_MODEL_STORAGE_KEY = "practi:ollama-model";
 
 const SUGGESTED = [
   "What documents do I need to prepare for pre-deployment?",
@@ -164,6 +177,104 @@ function Message({ msg }: { msg: ChatMessage }) {
   );
 }
 
+function LlmSettingsPanel({
+  collapsed,
+  llmConfig,
+  llmProvider,
+  ollamaModel,
+  onProviderChange,
+  onOllamaModelChange,
+}: {
+  collapsed: boolean;
+  llmConfig: LlmConfig | null;
+  llmProvider: LlmProvider;
+  ollamaModel: string;
+  onProviderChange: (provider: LlmProvider) => void;
+  onOllamaModelChange: (model: string) => void;
+}) {
+  if (collapsed) return null;
+
+  const groqLabel = llmConfig?.groq_model ?? "Groq";
+  const modelOptions = llmConfig?.ollama_models.length
+    ? llmConfig.ollama_models
+    : llmConfig?.default_ollama_model
+      ? [llmConfig.default_ollama_model]
+      : [];
+
+  return (
+    <div className="space-y-3 border-t border-white/10 px-3 py-4">
+      <p className="px-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+        Model
+      </p>
+
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => onProviderChange("groq")}
+          disabled={llmConfig !== null && !llmConfig.groq_available}
+          className={`rounded-lg px-2.5 py-2 text-[12px] font-medium transition ${
+            llmProvider === "groq"
+              ? "bg-white/15 text-white"
+              : "text-slate-400 hover:bg-white/8 hover:text-white"
+          } disabled:cursor-not-allowed disabled:opacity-40`}
+        >
+          Cloud
+        </button>
+        <button
+          type="button"
+          onClick={() => onProviderChange("ollama")}
+          className={`rounded-lg px-2.5 py-2 text-[12px] font-medium transition ${
+            llmProvider === "ollama"
+              ? "bg-white/15 text-white"
+              : "text-slate-400 hover:bg-white/8 hover:text-white"
+          }`}
+        >
+          Local
+        </button>
+      </div>
+
+      {llmProvider === "groq" ? (
+        <p className="px-2 text-[11px] text-slate-400 leading-relaxed">
+          Using <span className="text-slate-200">{groqLabel}</span> via Groq.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          <label className="block px-2 text-[11px] text-slate-400" htmlFor="ollama-model">
+            Ollama model
+          </label>
+          {modelOptions.length > 0 ? (
+            <select
+              id="ollama-model"
+              value={ollamaModel}
+              onChange={(e) => onOllamaModelChange(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 text-[12px] text-slate-100 outline-none transition focus:border-brand-400"
+            >
+              {modelOptions.map((model) => (
+                <option key={model} value={model} className="text-slate-900">
+                  {model}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              id="ollama-model"
+              value={ollamaModel}
+              onChange={(e) => onOllamaModelChange(e.target.value)}
+              placeholder="llama3.1:8b"
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 text-[12px] text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-brand-400"
+            />
+          )}
+          {llmConfig && !llmConfig.ollama_available && (
+            <p className="px-2 text-[10px] text-amber-300/90 leading-relaxed">
+              Ollama not detected. Start Ollama locally or enter a model name manually.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Page ────────────────────────────────────────────────────────── */
 
 export default function HomePage() {
@@ -172,8 +283,64 @@ export default function HomePage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [llmConfig, setLlmConfig] = useState<LlmConfig | null>(null);
+  const [llmProvider, setLlmProvider] = useState<LlmProvider>("groq");
+  const [ollamaModel, setOllamaModel] = useState("llama3.1:8b");
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const storedProvider = localStorage.getItem(PROVIDER_STORAGE_KEY);
+    const storedModel = localStorage.getItem(OLLAMA_MODEL_STORAGE_KEY);
+    if (storedProvider === "groq" || storedProvider === "ollama") {
+      setLlmProvider(storedProvider);
+    }
+    if (storedModel) {
+      setOllamaModel(storedModel);
+    }
+
+    fetch(`${getApiBase()}/api/llm/config`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to load model config");
+        return res.json() as Promise<LlmConfig>;
+      })
+      .then((config) => {
+        setLlmConfig(config);
+        const savedProvider = localStorage.getItem(PROVIDER_STORAGE_KEY) as LlmProvider | null;
+        if (!savedProvider) {
+          setLlmProvider(config.default_provider);
+        } else if (savedProvider === "groq" && !config.groq_available) {
+          setLlmProvider("ollama");
+        }
+        const savedModel = localStorage.getItem(OLLAMA_MODEL_STORAGE_KEY);
+        if (!savedModel) {
+          setOllamaModel(config.default_ollama_model);
+        } else if (
+          config.ollama_models.length > 0 &&
+          !config.ollama_models.includes(savedModel)
+        ) {
+          setOllamaModel(config.default_ollama_model);
+        }
+      })
+      .catch(() => {
+        // Keep local defaults if config endpoint is unavailable.
+      });
+  }, []);
+
+  const handleProviderChange = useCallback((provider: LlmProvider) => {
+    setLlmProvider(provider);
+    localStorage.setItem(PROVIDER_STORAGE_KEY, provider);
+  }, []);
+
+  const handleOllamaModelChange = useCallback((model: string) => {
+    setOllamaModel(model);
+    localStorage.setItem(OLLAMA_MODEL_STORAGE_KEY, model);
+  }, []);
+
+  const activeModelLabel =
+    llmProvider === "ollama"
+      ? ollamaModel
+      : llmConfig?.groq_model ?? "Groq";
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -213,6 +380,8 @@ export default function HomePage() {
             message: trimmed,
             history,
             query_date: new Date().toISOString().slice(0, 10),
+            llm_provider: llmProvider,
+            ollama_model: llmProvider === "ollama" ? ollamaModel : undefined,
           }),
         });
         if (!res.ok) {
@@ -236,7 +405,7 @@ export default function HomePage() {
         setTimeout(scrollToBottom, 50);
       }
     },
-    [loading, messages, scrollToBottom],
+    [loading, messages, scrollToBottom, llmProvider, ollamaModel],
   );
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -305,14 +474,25 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Nav (empty for now — keeps footer pinned to bottom) */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4" />
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto">
+          <LlmSettingsPanel
+            collapsed={collapsed}
+            llmConfig={llmConfig}
+            llmProvider={llmProvider}
+            ollamaModel={ollamaModel}
+            onProviderChange={handleProviderChange}
+            onOllamaModelChange={handleOllamaModelChange}
+          />
+        </nav>
 
         {/* Footer */}
         {!collapsed && (
           <div className="border-t border-white/10 px-5 py-4 space-y-0.5">
             <p className="text-[11px] text-slate-500">Powered by</p>
-            <p className="text-[12px] font-medium text-slate-300">Groq · LLaMA 3 · ChromaDB</p>
+            <p className="text-[12px] font-medium text-slate-300">
+              {llmProvider === "ollama" ? "Ollama" : "Groq"} · {activeModelLabel} · ChromaDB
+            </p>
           </div>
         )}
       </aside>
@@ -335,7 +515,37 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-3">
+            <div className="md:hidden">
+              <select
+                value={llmProvider}
+                onChange={(e) => handleProviderChange(e.target.value as LlmProvider)}
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              >
+                <option value="groq">Cloud</option>
+                <option value="ollama">Local</option>
+              </select>
+            </div>
+            {llmProvider === "ollama" && (
+              <div className="md:hidden">
+                <select
+                  value={ollamaModel}
+                  onChange={(e) => handleOllamaModelChange(e.target.value)}
+                  className="max-w-[9rem] rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                >
+                  {(llmConfig?.ollama_models.length
+                    ? llmConfig.ollama_models
+                    : [ollamaModel]
+                  ).map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <ThemeToggle />
+          </div>
         </header>
 
         {/* Messages */}
