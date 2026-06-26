@@ -32,6 +32,15 @@ class Settings(BaseSettings):
     RETRIEVER_K: int = 8
     RETRIEVER_K_CANDIDATES: int = 24
 
+    ENABLE_VISION_INGEST: bool = True
+    VISION_PROVIDER: str = "ollama"  # "groq" or "ollama"
+    GROQ_VISION_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+    OLLAMA_VISION_MODEL: str = "llama3.2-vision"
+    VISION_MIN_TEXT_CHARS: int = 80
+    VISION_MIN_IMAGE_BYTES: int = 4096
+    VISION_MAX_IMAGES_PER_FILE: int = 30
+    VISION_RENDER_DPI: int = 150
+
     SYSTEM_PROMPT: str = """You are Practi, a helpful assistant for practicum and internship students. \
 Answer only using the provided context. If the answer is not in the context, say so politely."""
 

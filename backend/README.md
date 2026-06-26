@@ -30,7 +30,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - Health: `GET http://localhost:8000/health`
 - Swagger: `http://localhost:8000/docs`
 
-Run `python ingest.py` after adding or changing files in `backend/docs/`. Not needed on every startup — the server reuses `backend/chroma_db/` if it exists.
+Run `python ingest.py` after adding or changing files in `backend/docs/`. **Stop the backend first** (uvicorn locks `chroma_db/` on Windows).
 
 ## LLM providers
 
@@ -61,7 +61,29 @@ Examples:
 
 After changing docs: `python ingest.py`
 
-Debug the index: `python inspect_db.py stats`
+### Vision ingest (images in PDF/DOCX/PPTX)
+
+By default, ingest sends images to a **vision model** and stores the extracted text in Chroma. This captures screenshots, diagrams, and image-only slides.
+
+1. Pull a vision model (Ollama default):
+   ```powershell
+   ollama pull llama3.2-vision
+   ```
+2. Run ingest (slow — one vision call per image):
+   ```powershell
+   python ingest.py
+   ```
+
+| Setting | Default | Purpose |
+|---------|---------|---------|
+| `ENABLE_VISION_INGEST` | `true` | Toggle vision at ingest |
+| `VISION_PROVIDER` | `ollama` | `ollama` or `groq` |
+| `OLLAMA_VISION_MODEL` | `llama3.2-vision` | Local vision model |
+| `GROQ_VISION_MODEL` | `meta-llama/llama-4-scout-17b-16e-instruct` | Groq vision model |
+
+To skip vision (faster ingest): set `ENABLE_VISION_INGEST=false` in `.env`.
+
+Debug the index: `python inspect_db.py search "your phrase"`
 
 ## Tests
 

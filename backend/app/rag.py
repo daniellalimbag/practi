@@ -24,7 +24,16 @@ from app.schemas import HistoryTurn
 
 logger = logging.getLogger(__name__)
 
-CHROMA_CLIENT_SETTINGS = ChromaSettings(anonymized_telemetry=False)
+
+def chroma_client_settings(persist_directory: str | None = None) -> ChromaSettings:
+    """Build Chroma settings. Must set is_persistent when writing to disk."""
+    if persist_directory:
+        return ChromaSettings(
+            anonymized_telemetry=False,
+            is_persistent=True,
+            persist_directory=persist_directory,
+        )
+    return ChromaSettings(anonymized_telemetry=False)
 
 
 class RAGService:
@@ -53,13 +62,13 @@ class RAGService:
         log_chunk_summary(splits)
 
         persist_directory = str(settings.CHROMA_DB_DIR) if persist else None
-        
+
         self.vectorstore = Chroma.from_documents(
             documents=splits,
             embedding=self.embeddings,
             collection_name="practi_kb",
             persist_directory=persist_directory,
-            client_settings=CHROMA_CLIENT_SETTINGS,
+            client_settings=chroma_client_settings(persist_directory),
         )
         logger.info(
             "Chroma index built with %s chunks from %s files. Persisted: %s", 
@@ -76,7 +85,7 @@ class RAGService:
             collection_name="practi_kb",
             embedding_function=self.embeddings,
             persist_directory=str(settings.CHROMA_DB_DIR),
-            client_settings=CHROMA_CLIENT_SETTINGS,
+            client_settings=chroma_client_settings(str(settings.CHROMA_DB_DIR)),
         )
         logger.info("Loaded persisted Chroma index from %s", settings.CHROMA_DB_DIR)
 
@@ -163,6 +172,7 @@ class RAGService:
                         "Documents dated after the query date are not included. "
                         "When you rely on information from a source, mention when it was recorded using that source's date. "
                         "If newer and older sources conflict, note the dates and prefer the newer one unless the question is about history. "
+                        "Important: Do not include the source metadata in your answer. "
                         "CRITICAL: Answer ONLY using the provided context. "
                         "If the answer is not contained within the context below, state that you do not have enough information to answer. "
                         "Do not use outside knowledge.\n\nContext:\n{context}",
