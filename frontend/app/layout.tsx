@@ -6,7 +6,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "PractiGuide — Internship Assistant",
+  title: "Practi: Internship Assistant",
   description: "RAG assistant for practicum and internship students",
 };
 
