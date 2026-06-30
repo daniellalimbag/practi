@@ -31,3 +31,5 @@ Thumbs.db
 # Chroma / local caches (if ever persisted)
 chroma_db/
 backend/docs/
+backend/audit_logs.db
+backend/audit_logs.db-*
