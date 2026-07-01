@@ -85,6 +85,31 @@ To skip vision (faster ingest): set `ENABLE_VISION_INGEST=false` in `.env`.
 
 Debug the index: `python inspect_db.py search "your phrase"`
 
+## Audit logging
+
+Every chat request is logged to a local SQLite database (`backend/audit_logs.db` by default). Logs include the question, conversation history, answer, sources, query date, LLM provider/model, and success or error status.
+
+| Setting | Default | Purpose |
+|---------|---------|---------|
+| `ENABLE_AUDIT_LOGGING` | `true` | Write chat logs to SQLite |
+| `AUDIT_DB_PATH` | `backend/audit_logs.db` | Database file path |
+| `ENABLE_AUDIT_API` | `false` | Expose `GET /api/audit/recent` (not implemented yet) |
+
+The audit DB is gitignored. Logging is best-effort — failures do not break chat.
+
+Inspect recent logs with SQLite:
+
+```powershell
+sqlite3 audit_logs.db "SELECT created_at, message, status FROM chat_audit ORDER BY created_at DESC LIMIT 10;"
+```
+
+Or in Python:
+
+```python
+from app.audit import list_recent_logs
+print(list_recent_logs(limit=5))
+```
+
 ## Tests
 
 ```powershell

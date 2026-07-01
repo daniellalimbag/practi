@@ -8,6 +8,7 @@ from app.config import settings
 from app.schemas import ChatRequest, ChatResponse, LlmConfigResponse
 from app.rag import rag_service
 from app.llm import get_llm_config
+from app.audit import init_audit_db, log_chat_error, log_chat_success
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("chromadb.telemetry.product.posthog").setLevel(logging.CRITICAL)
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # Startup: load persisted vector store or build if missing
     rag_service.load_vectorstore()
+    init_audit_db()
     yield
     # Shutdown (nothing to clean up for in-memory Chroma)
 
@@ -41,6 +43,7 @@ async def llm_config():
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(body: ChatRequest):
+    history_payload = [turn.model_dump() for turn in body.history]
     try:
         answer, sources, effective_query_date, provider, model = await rag_service.chat(
             body.message,
@@ -48,6 +51,15 @@ async def chat(body: ChatRequest):
             body.query_date,
             body.llm_provider,
             body.ollama_model,
+        )
+        log_chat_success(
+            message=body.message,
+            history=history_payload,
+            answer=answer,
+            sources=sources,
+            query_date=effective_query_date,
+            llm_provider=provider,
+            model=model,
         )
         return ChatResponse(
             answer=answer,
@@ -59,10 +71,26 @@ async def chat(body: ChatRequest):
     except ValueError as e:
         # These are expected errors we handle (missing key, not initialized, etc.)
         error_msg = str(e)
+        log_chat_error(
+            message=body.message,
+            history=history_payload,
+            error=error_msg,
+            query_date=body.query_date,
+            llm_provider=body.llm_provider,
+            model=body.ollama_model,
+        )
         if "GROQ_API_KEY" in error_msg or "LLM_PROVIDER" in error_msg:
             raise HTTPException(status_code=500, detail=error_msg)
         raise HTTPException(status_code=503, detail=error_msg)
     except Exception as e:
         # Unexpected errors
         logger.error(f"Unhandled error in chat endpoint: {e}", exc_info=True)
+        log_chat_error(
+            message=body.message,
+            history=history_payload,
+            error=str(e),
+            query_date=body.query_date,
+            llm_provider=body.llm_provider,
+            model=body.ollama_model,
+        )
         raise HTTPException(status_code=500, detail="An unexpected error occurred. Please try again later.")
